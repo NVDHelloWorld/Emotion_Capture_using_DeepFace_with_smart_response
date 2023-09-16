@@ -1,3 +1,4 @@
 opencv-python
 streamlit
 deepface
+tensorflow
