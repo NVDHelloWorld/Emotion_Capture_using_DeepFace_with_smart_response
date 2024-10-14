@@ -1,4 +1,7 @@
-opencv-python
 streamlit
-deepface
 tensorflow
+deepface
+opencv-python
+pyjokes
+pyttsx3
+numpy
