@@ -12,25 +12,38 @@ model = DeepFace.build_model('Emotion')
 # Define emotion labels
 emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
 
+# Function to preprocess the image for DEEPFACE
+def preprocess_image(frame):
+    resized_frame = cv2.resize(frame, (48, 48), interpolation=cv2.INTER_AREA)  # Resize frame
+    img = resized_frame.astype('float32') / 255.0  # Normalize
+    img = np.expand_dims(img, axis=0)  # Add batch dimension
+    return img
+
 # Function to predict emotion
 def predict_emotion(frame):
-    # Resize frame
-    resized_frame = cv2.resize(frame, (48, 48), interpolation=cv2.INTER_AREA)
-
-    # Convert frame to grayscale
-    gray_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2GRAY)
-
-    # Preprocess the image for DEEPFACE
-    img = gray_frame.astype('float32') / 255.0
-    img = np.expand_dims(img, axis=-1)
-    img = np.expand_dims(img, axis=0)
-
-    # Predict emotions using DEEPFACE
+    img = preprocess_image(frame)
     preds = model.predict(img)
     emotion_idx = np.argmax(preds)
     emotion = emotion_labels[emotion_idx]
-
     return emotion
+
+# Function to get response based on emotion
+def get_response(emotion):
+    responses = {
+        'happy': "HEY! You look happy. Congrats!",
+        'sad': pyjokes.get_joke(),
+        'angry': random.choice([
+            "Take a deep breath and count to ten.",
+            "Stay calm and carry on.",
+            "Inhale the future, exhale the past.",
+            "Keep calm and let it go.",
+        ]),
+        'neutral': "You seem to be in a neutral mood.",
+        'surprise': "You look surprised!",
+        'disgust': "You seem disgusted.",
+        'fear': "You appear to be fearful."
+    }
+    return responses.get(emotion, "Emotion not recognized.")
 
 # Streamlit app
 def main():
@@ -45,6 +58,9 @@ def main():
         
         # Start capturing video
         cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            st.error("Could not open video device.")
+            return
 
         # Initialize image_container with a default image
         default_image = np.zeros((300, 400, 3), dtype=np.uint8)
@@ -53,22 +69,12 @@ def main():
         while True:
             # Capture frame-by-frame
             ret, frame = cap.read()
+            if not ret:
+                st.error("Failed to capture image.")
+                break
 
-            # Resize frame
-            resized_frame = cv2.resize(frame, (48, 48), interpolation=cv2.INTER_AREA)
-
-            # Convert frame to grayscale
-            gray_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2GRAY)
-
-            # Preprocess the image for DEEPFACE
-            img = gray_frame.astype('float32') / 255.0
-            img = np.expand_dims(img, axis=-1)
-            img = np.expand_dims(img, axis=0)
-
-            # Predict emotions using DEEPFACE
-            preds = model.predict(img)
-            emotion_idx = np.argmax(preds)
-            emotion = emotion_labels[emotion_idx]
+            # Predict emotion
+            emotion = predict_emotion(frame)
 
             # Draw rectangle around face and label with predicted emotion
             cv2.rectangle(frame, (0, 0), (200, 30), (0, 0, 0), -1)
@@ -90,7 +96,10 @@ def main():
 
         if uploaded_image is not None:
             # Read the uploaded image
-            image = cv2.imdecode(np.fromstring(uploaded_image.read(), np.uint8), 1)
+            image = cv2.imdecode(np.frombuffer(uploaded_image.read(), np.uint8), cv2.IMREAD_COLOR)
+            if image is None:
+                st.error("Failed to read image.")
+                return
 
             # Predict emotion
             emotion = predict_emotion(image)
@@ -101,43 +110,32 @@ def main():
             # Display the uploaded image with the predicted emotion
             st.image(rgb_image, caption=f"Detected Emotion: {emotion}", use_column_width=True)
 
-            # Define responses based on emotions
-            responses = {
-                'happy': "HEY! You look happy. Congrats!",
-                'sad': pyjokes.get_joke(),
-                'angry': random.choice([
-                    "Take a deep breath and count to ten.",
-                    "Stay calm and carry on.",
-                    "Inhale the future, exhale the past.",
-                    "Keep calm and let it go.",
-                ]),
-                'neutral': "You seem to be in a neutral mood.",
-                'surprise': "You look surprised!",
-                'disgust': "You seem disgusted.",
-                'fear': "You appear to be fearful."
-            }
-
             # Display the response based on the detected emotion
-            if emotion in responses:
-                response_text = responses[emotion]
-                st.write(f"**Emotion:** {emotion}")
-                st.write(f"**Response:** {response_text}")
+            response_text = get_response(emotion)
+            st.write(f"**Emotion:** {emotion}")
+            st.write(f"**Response:** {response_text}")
 
-                # Initialize the text-to-speech engine
-                engine = pyttsx3.init()
+            # Initialize the text-to-speech engine
+            engine = pyttsx3.init()
 
-                # Speak the response
-                engine.say(response_text)
-                engine.runAndWait()
-            else:
-                st.warning("Emotion not recognized.")
-
+            # Speak the response
+            engine.say(response_text)
+            engine.runAndWait()
     elif option == "Click Image":
         # Capture an image using the webcam and predict emotion
         if st.button("Click Image"):
             # Capture an image using the webcam
             cap = cv2.VideoCapture(0)
+            if not cap.isOpened():
+                st.error("Could not open video device.")
+                return
+
             ret, frame = cap.read()
+            cap.release()
+
+            if not ret:
+                st.error("Failed to capture image.")
+                return
 
             # Predict emotion
             emotion = predict_emotion(frame)
@@ -148,39 +146,17 @@ def main():
             # Display the captured image with the predicted emotion
             st.image(rgb_frame, caption=f"Detected Emotion: {emotion}", use_column_width=True)
 
-            # Define responses based on emotions
-            responses = {
-                'happy': "HEY! You look happy. Congrats!",
-                'sad': pyjokes.get_joke(),
-                'angry': random.choice([
-                    "Take a deep breath and count to ten.",
-                    "Stay calm and carry on.",
-                    "Inhale the future, exhale the past.",
-                    "Keep calm and let it go.",
-                ]),
-                'neutral': "You seem to be in a neutral mood.",
-                'surprise': "You look surprised!",
-                'disgust': "You seem disgusted.",
-                'fear': "You appear to be fearful."
-            }
-
             # Display the response based on the detected emotion
-            if emotion in responses:
-                response_text = responses[emotion]
-                st.write(f"**Emotion:** {emotion}")
-                st.write(f"**Response:** {response_text}")
+            response_text = get_response(emotion)
+            st.write(f"**Emotion:** {emotion}")
+            st.write(f"**Response:** {response_text}")
 
-                # Initialize the text-to-speech engine
-                engine = pyttsx3.init()
+            # Initialize the text-to-speech engine
+            engine = pyttsx3.init()
 
-                # Speak the response
-                engine.say(response_text)
-                engine.runAndWait()
-            else:
-                st.warning("Emotion not recognized.")
-
-            # Release the capture
-            cap.release()
+            # Speak the response
+            engine.say(response_text)
+            engine.runAndWait()
 
 if __name__ == "__main__":
     main()
