@@ -7,7 +7,7 @@ import pyttsx3
 import streamlit as st
 
 # Load DEEPFACE model
-model = DeepFace.build_model('Emotion')
+model = DeepFace.build_model(task="facial_attribute" , model_name='Emotion')
 
 # Define emotion labels
 emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
