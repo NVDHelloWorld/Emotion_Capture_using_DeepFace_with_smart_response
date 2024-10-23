@@ -5,7 +5,7 @@ import pyjokes
 import random
 import pyttsx3
 import streamlit as st
-
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 # Load DEEPFACE model
 model = DeepFace.build_model(task="facial_attribute" , model_name='Emotion')
 
@@ -44,7 +44,18 @@ def get_response(emotion):
         'fear': "You appear to be fearful."
     }
     return responses.get(emotion, "Emotion not recognized.")
+class EmotionDetectionTransformer(VideoTransformerBase):
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")
 
+        # Predict emotion
+        emotion = predict_emotion(img)
+
+        # Draw rectangle around face and label with predicted emotion
+        cv2.rectangle(img, (0, 0), (200, 30), (0, 0, 0), -1)
+        cv2.putText(img, emotion, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+        return img
 # Streamlit app
 def main():
     st.title("Emotion Detection App")
@@ -54,6 +65,7 @@ def main():
     option = st.sidebar.radio("Select an option", ("Real-time Emotion Detection", "Capture Image from System", "Click Image"))
 
     if option == "Real-time Emotion Detection":
+        """
         st.write("Real-time Emotion Detection is active. Press 'q' to exit.")
         
         # Start capturing video
@@ -90,6 +102,9 @@ def main():
         # Release the capture and close all windows
         cap.release()
         cv2.destroyAllWindows()
+        """
+        webrtc_streamer(key="emotion-detection", video_transformer_factory=EmotionDetectionTransformer)
+
     elif option == "Capture Image from System":
         # Capture an image from the user's system and predict emotion
         uploaded_image = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
