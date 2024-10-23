@@ -1,7 +1,9 @@
 streamlit
 tensorflow
+tf-keras
 deepface
 opencv-python
 pyjokes
 pyttsx3
 numpy
+
